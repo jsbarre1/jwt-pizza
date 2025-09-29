@@ -245,6 +245,62 @@ test('register', async ({ page }) => {
 });
 
 
+test('franchisee dashboard', async ({ page }) => {
+  await page.route('*/**/api/auth', async (route) => {
+    const loginReq = { email: 'f@jwt.com', password: 'franchisee' };
+    const loginRes = {
+      user: {
+        id: 2,
+        name: 'Franchise Owner',
+        email: 'f@jwt.com',
+        roles: [{ objectId: 1, role: 'franchisee' }]
+      },
+      token: 'franchisee-token-abc123'
+    };
+    expect(route.request().method()).toBe('PUT');
+    expect(route.request().postDataJSON()).toMatchObject(loginReq);
+    await route.fulfill({ json: loginRes });
+  });
+
+  await page.route('*/**/api/franchise/2', async (route) => {
+    if (route.request().method() === 'GET') {
+      const franchiseData = [
+        {
+          id: 1,
+          name: 'MyFranchise',
+          admins: [{ id: 2, name: 'Franchise Owner', email: 'f@jwt.com' }],
+          stores: [
+            { id: 1, name: 'Store One', totalRevenue: 0.15 },
+            { id: 2, name: 'Store Two', totalRevenue: 0.25 }
+          ]
+        }
+      ];
+      await route.fulfill({ json: franchiseData });
+    }
+  });
+
+  await page.goto('/');
+
+  // Navigate to Franchise page and login
+  await page.getByLabel('Global').getByRole('link', { name: 'Franchise' }).click();
+  await page.locator('a[href="/franchise-dashboard/login"]').click();
+
+  // Login as franchisee
+  await page.getByPlaceholder('Email address').fill('f@jwt.com');
+  await page.getByPlaceholder('Password').fill('franchisee');
+  await page.getByRole('button', { name: 'Login' }).click();
+
+  // Wait for franchise dashboard to load
+  await expect(page.locator('text=MyFranchise')).toBeVisible();
+
+  // Verify franchise dashboard content
+  await expect(page.getByText('Store One')).toBeVisible();
+  await expect(page.getByText('Store Two')).toBeVisible();
+  await expect(page.getByText('0.15 ₿')).toBeVisible();
+  await expect(page.getByText('0.25 ₿')).toBeVisible();
+});
+
+
 test('explore', async ({ page }) => {
 await page.goto('http://localhost:5173/');
 await page.getByRole('contentinfo').getByRole('link', { name: 'Franchise' }).click();
