@@ -139,6 +139,8 @@ test('purchase with login', async ({ page }) => {
 
 
 test('franchise operations', async ({ page }) => {
+  let storeCreated = false;
+
   await page.route('*/**/api/auth', async (route) => {
     const loginReq = { email: 'a@jwt.com', password: 'admin' };
     const loginRes = {
@@ -160,18 +162,22 @@ test('franchise operations', async ({ page }) => {
 
   await page.route('*/**/api/franchise/1', async (route) => {
     if (route.request().method() === 'GET') {
-      await route.fulfill({
-        json: [
-          {
-            id: 1,
-            name: 'pizzaPocket',
-            admins: [{ id: 1, name: '常用名字', email: 'a@jwt.com' }],
-            stores: [
-              { id: 1, name: 'SLC', totalRevenue: 0 }
-            ]
-          }
-        ]
-      });
+      const franchiseData = [
+        {
+          id: 1,
+          name: 'pizzaPocket',
+          admins: [{ id: 1, name: '常用名字', email: 'a@jwt.com' }],
+          stores: [
+            { id: 1, name: 'SLC', totalRevenue: 0 }
+          ]
+        }
+      ];
+
+      if (storeCreated) {
+        franchiseData[0].stores.push({ id: 2, name: 'cool guy store', totalRevenue: 0 });
+      }
+
+      await route.fulfill({ json: franchiseData });
     }
   });
 
@@ -180,6 +186,7 @@ test('franchise operations', async ({ page }) => {
       const storeReq = { name: 'cool guy store' };
       const storeRes = { id: 2, franchiseId: 1, name: 'cool guy store' };
       expect(route.request().postDataJSON()).toMatchObject(storeReq);
+      storeCreated = true;
       await route.fulfill({ json: storeRes });
     }
   });
@@ -210,7 +217,44 @@ test('franchise operations', async ({ page }) => {
 
 
 test('register', async ({ page }) => {
+  await page.route('*/**/api/auth', async (route) => {
+    const registerReq = { name: 'tester', email: 'test@jwt.com', password: 'TEST' };
+    const registerRes = {
+      user: {
+        id: 4,
+        name: 'tester',
+        email: 'test@jwt.com',
+        roles: [{ role: 'diner' }],
+      },
+      token: 'abcdef123',
+    };
+    expect(route.request().method()).toBe('POST');
+    expect(route.request().postDataJSON()).toMatchObject(registerReq);
+    await route.fulfill({ json: registerRes });
+  });
 
-
-  
+  await page.goto('http://localhost:5173/');
+  await page.getByRole('link', { name: 'Register' }).click();
+  await page.getByRole('textbox', { name: 'Full name' }).fill('tester');
+  await page.getByRole('textbox', { name: 'Full name' }).press('Tab');
+  await page.getByRole('textbox', { name: 'Email address' }).fill('test@jwt.com');
+  await page.getByRole('textbox', { name: 'Email address' }).press('Tab');
+  await page.getByRole('textbox', { name: 'Password' }).fill('TEST');
+  await page.getByRole('button', { name: 'Register' }).click();
+  await expect(page.getByRole('heading', { name: "The web's best pizza" })).toBeVisible();
 });
+
+
+test('explore', async ({ page }) => {
+await page.goto('http://localhost:5173/');
+await page.getByRole('contentinfo').getByRole('link', { name: 'Franchise' }).click();
+await page.getByRole('cell', { name: '2020' }).click();
+await page.getByRole('cell', { name: '50 ₿' }).nth(4).click();
+await page.getByRole('link', { name: 'About' }).click();
+await page.locator('div').filter({ hasText: /^Brian$/ }).getByRole('img').click();
+await page.getByRole('link', { name: 'History' }).click();
+await page.getByText('However, it was the Romans').click();
+await page.getByRole('link', { name: 'Login' }).click();
+await page.getByLabel('Global').getByRole('link', { name: 'Franchise' }).click();
+
+})
