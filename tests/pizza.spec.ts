@@ -138,3 +138,79 @@ test('purchase with login', async ({ page }) => {
 });
 
 
+test('franchise operations', async ({ page }) => {
+  await page.route('*/**/api/auth', async (route) => {
+    const loginReq = { email: 'a@jwt.com', password: 'admin' };
+    const loginRes = {
+      user: {
+        id: 1,
+        name: '常用名字',
+        email: 'a@jwt.com',
+        roles: [
+          { role: 'admin' },
+          { objectId: 1, role: 'franchisee' }
+        ]
+      },
+      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwibmFtZSI6IuW4uOeUqOWQjeWtlyIsImVtYWlsIjoiYUBqd3QuY29tIiwicm9sZXMiOlt7InJvbGUiOiJhZG1pbiJ9LHsib2JqZWN0SWQiOjEsInJvbGUiOiJmcmFuY2hpc2VlIn1dLCJpYXQiOjE3NTkxNzQ4MTh9.AFcOdi-Xo9EViLROworseN-Xm0MrcBAGJN5OawHL-_c'
+    };
+    expect(route.request().method()).toBe('PUT');
+    expect(route.request().postDataJSON()).toMatchObject(loginReq);
+    await route.fulfill({ json: loginRes });
+  });
+
+  await page.route('*/**/api/franchise/1', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        json: [
+          {
+            id: 1,
+            name: 'pizzaPocket',
+            admins: [{ id: 1, name: '常用名字', email: 'a@jwt.com' }],
+            stores: [
+              { id: 1, name: 'SLC', totalRevenue: 0 }
+            ]
+          }
+        ]
+      });
+    }
+  });
+
+  await page.route('*/**/api/franchise/1/store', async (route) => {
+    if (route.request().method() === 'POST') {
+      const storeReq = { name: 'cool guy store' };
+      const storeRes = { id: 2, franchiseId: 1, name: 'cool guy store' };
+      expect(route.request().postDataJSON()).toMatchObject(storeReq);
+      await route.fulfill({ json: storeRes });
+    }
+  });
+
+  await page.goto('/');
+
+  // Navigate to Franchise page and login
+  await page.getByLabel('Global').getByRole('link', { name: 'Franchise' }).click();
+  await page.locator('a[href="/franchise-dashboard/login"]').click();
+
+  // Login as admin
+  await page.getByPlaceholder('Email address').fill('a@jwt.com');
+  await page.getByPlaceholder('Password').fill('admin');
+  await page.getByRole('button', { name: 'Login' }).click();
+
+  // Wait for franchise dashboard to load
+  await expect(page.locator('text=pizzaPocket')).toBeVisible();
+
+  // Create a new store
+  await page.getByRole('button', { name: 'Create store' }).click();
+  await page.getByPlaceholder('store name').fill('cool guy store');
+  await page.getByRole('button', { name: 'Create' }).click();
+
+  // Verify the store was created
+  await expect(page.getByText('cool guy store')).toBeVisible();
+});
+
+
+
+test('register', async ({ page }) => {
+
+
+  
+});
