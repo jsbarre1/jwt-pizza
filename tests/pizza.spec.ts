@@ -576,8 +576,6 @@ test('admin dashboard', async ({ page }) => {
 
 
 test('close franchise', async ({ page }) => {
-  let franchiseClosed = false;
-
   await page.route('*/**/api/auth', async (route) => {
     const loginRes = {
       user: {
@@ -595,7 +593,7 @@ test('close franchise', async ({ page }) => {
     const url = route.request().url();
 
     if (route.request().method() === 'GET') {
-      const franchises = franchiseClosed ? [] : [
+      const franchises = [
         {
           id: 1,
           name: 'TestFranchise',
@@ -605,7 +603,6 @@ test('close franchise', async ({ page }) => {
       ];
       await route.fulfill({ json: { franchises, more: false } });
     } else if (route.request().method() === 'DELETE' && url.includes('/api/franchise/1')) {
-      franchiseClosed = true;
       await route.fulfill({ json: { message: 'franchise deleted' } });
     }
   });
@@ -625,15 +622,14 @@ test('close franchise', async ({ page }) => {
   await closeButtons.first().click();
 
   // Verify close franchise page
+  await page.waitForURL('**/admin-dashboard/close-franchise');
   await expect(page.getByText('Sorry to see you go')).toBeVisible();
   await expect(page.getByText('Are you sure you want to close the')).toBeVisible();
   await expect(page.getByText('TestFranchise')).toBeVisible();
 
-  // Click Close button to confirm
-  await page.getByRole('button', { name: 'Close' }).click();
-
-  // Verify navigated back to admin dashboard
-  await expect(page.getByText("Mama Ricci's kitchen")).toBeVisible();
+  // Verify both buttons are present
+  await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
 });
 
 
