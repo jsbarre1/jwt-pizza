@@ -917,3 +917,5 @@ await page.getByRole('link', { name: 'Login' }).click();
 await page.getByLabel('Global').getByRole('link', { name: 'Franchise' }).click();
 
 })
+
+
