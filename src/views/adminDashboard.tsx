@@ -49,10 +49,19 @@ export default function AdminDashboard(props: Props) {
     setUserList(await pizzaService.getUsers(userPage, 10, `*${filterUserRef.current?.value}*`));
   }
 
-  async function deleteUser(userId: string) {
-    await pizzaService.deleteUser(userId);
-    // Refresh the user list
-    setUserList(await pizzaService.getUsers(userPage, 10, '*'));
+  async function deleteUser(userId: string | undefined) {
+    if (!userId) {
+      return;
+    }
+
+    try {
+      await pizzaService.deleteUser(userId);
+      // Refresh the user list
+      setUserList(await pizzaService.getUsers(userPage, 10, '*'));
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      // Optionally show an error message to the user
+    }
   }
 
   let response = <NotFound />;
@@ -170,7 +179,7 @@ export default function AdminDashboard(props: Props) {
                               <button
                                 type="button"
                                 className="px-2 py-1 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-1 border-orange-400 text-orange-400 hover:border-orange-800 hover:text-orange-800"
-                                onClick={() => deleteUser(user.id!)}
+                                onClick={() => deleteUser(user.id)}
                               >
                                 <TrashIcon />
                                 Delete

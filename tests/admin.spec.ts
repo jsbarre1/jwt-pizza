@@ -117,13 +117,13 @@ test("display users table with headers", async ({ page }) => {
         json: {
           users: [
             {
-              id: 1,
+              id: "1",
               name: "Admin User",
               email: "admin@jwt.com",
               roles: [{ role: "admin" }],
             },
             {
-              id: 2,
+              id: "2",
               name: "Pizza Diner",
               email: "diner@jwt.com",
               roles: [{ role: "diner" }],
@@ -161,8 +161,6 @@ test("display users table with headers", async ({ page }) => {
 });
 
 test("delete user", async ({ page }) => {
-  let userDeleted = false;
-
   // Mock admin login
   await page.route("*/**/api/auth", async (route) => {
     const loginRes = {
@@ -187,28 +185,36 @@ test("delete user", async ({ page }) => {
     });
   });
 
-  // Mock users endpoint with delete functionality
-  await page.route("*/**/api/user**", async (route) => {
-    const url = route.request().url();
+  let deleteWasCalled = false;
 
-    if (route.request().method() === "DELETE" && url.includes("/api/user/2")) {
-      // Delete user with id 2
-      userDeleted = true;
-      await route.fulfill({ json: { message: "user deleted" } });
-    } else if (route.request().method() === "GET" && url.includes("/api/user?")) {
-      // Return user list (without deleted user if userDeleted is true)
+  // Mock all /api/user requests - use regex for more precise matching
+  await page.route(/\/api\/user/, async (route) => {
+    const url = route.request().url();
+    const method = route.request().method();
+
+    // Handle DELETE /api/user/:id
+    if (method === "DELETE" && url.match(/\/api\/user\/\d+/)) {
+      deleteWasCalled = true;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: "user deleted" })
+      });
+    }
+    // Handle GET /api/user?page=...
+    else if (method === "GET" && url.includes("/api/user?")) {
       const users = [
         {
-          id: 1,
+          id: "1",
           name: "Admin User",
           email: "admin@jwt.com",
           roles: [{ role: "admin" }],
         },
       ];
 
-      if (!userDeleted) {
+      if (!deleteWasCalled) {
         users.push({
-          id: 2,
+          id: "2",
           name: "Pizza Diner",
           email: "diner@jwt.com",
           roles: [{ role: "diner" }],
@@ -216,11 +222,17 @@ test("delete user", async ({ page }) => {
       }
 
       await route.fulfill({
-        json: {
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
           users: users,
           more: false,
-        },
+        })
       });
+    }
+    // For any other /api/user requests, continue
+    else {
+      await route.continue();
     }
   });
 
@@ -236,14 +248,19 @@ test("delete user", async ({ page }) => {
   // Navigate to admin dashboard
   await page.getByRole("link", { name: "Admin" }).click();
 
+  // Wait for the users table to load
+  await page.waitForSelector("text=Pizza Diner");
+
   // Verify Pizza Diner is visible
   await expect(page.getByText("Pizza Diner")).toBeVisible();
 
   // Find and click the delete button for Pizza Diner
   const userRow = page.locator("tr", { hasText: "Pizza Diner" });
-  await userRow.getByRole("button", { name: "Delete" }).click();
+  const deleteButton = userRow.getByRole("button", { name: /Delete/i });
+
+  await deleteButton.click();
 
   // User should be removed from the list
-  await expect(page.getByText("Pizza Diner")).not.toBeVisible();
+  await expect(page.locator("tr", { hasText: "Pizza Diner" })).not.toBeVisible();
 });
 
