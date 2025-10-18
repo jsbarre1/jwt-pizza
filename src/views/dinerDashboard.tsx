@@ -28,20 +28,28 @@ export default function DinerDashboard(props: Props) {
   }, [user]);
 
 async function updateUser() {
-  let updatedUser: User = {
-    id: user.id,
-    name: nameRef.current?.value,
-    email: emailRef.current?.value,
-    password: passwordRef.current?.value || undefined,
-    roles: user.roles,
-  };
+  try {
+    let updatedUser: User = {
+      id: user.id,
+      name: nameRef.current?.value,
+      email: emailRef.current?.value,
+      password: passwordRef.current?.value || undefined,
+      roles: user.roles,
+    };
 
-  await pizzaService.updateUser(updatedUser);
+    await pizzaService.updateUser(updatedUser);
 
-  props.setUser(updatedUser);
-  setTimeout(() => {
-    HSOverlay.close(document.getElementById('hs-jwt-modal')!);
-  }, 100);
+    props.setUser(updatedUser);
+    setTimeout(() => {
+      HSOverlay.close(document.getElementById('hs-jwt-modal')!);
+    }, 100);
+  } catch (error) {
+    console.error('Failed to update user:', error);
+    // Still close the dialog even on error
+    setTimeout(() => {
+      HSOverlay.close(document.getElementById('hs-jwt-modal')!);
+    }, 100);
+  }
 }
 
   function formatRole(role: { role: Role; objectId?: string }) {

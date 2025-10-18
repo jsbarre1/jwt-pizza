@@ -14,3 +14,4 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 .nyc_output
+.nyc_output/*
