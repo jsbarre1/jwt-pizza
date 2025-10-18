@@ -1,0 +1,14 @@
+
+> pizzashop@1.0.0 test
+> playwright test tests/user.spec.ts
+
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › tests/user.spec.ts:3:1 › updateUser
+[1A[2K  1 passed (3.4s)
+
+To open last HTML report run:
+
+  npx playwright show-report
+

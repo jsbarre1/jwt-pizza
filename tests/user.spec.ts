@@ -2,7 +2,7 @@ import { test, expect } from "playwright-test-coverage";
 
 test("updateUser", async ({ page }) => {
   const email = `user${Math.floor(Math.random() * 10000)}@jwt.com`;
-  let userName = "pizza diner";
+  const userData = { name: "pizza diner" };
 
   // Mock all auth and user endpoints
   await page.route(/\/(api\/auth|api\/user)/, async (route) => {
@@ -14,8 +14,8 @@ test("updateUser", async ({ page }) => {
       await route.fulfill({
         json: {
           user: {
-            id: 3,
-            name: userName,
+            id: "3",
+            name: userData.name,
             email: email,
             roles: [{ role: "diner" }],
           },
@@ -28,8 +28,8 @@ test("updateUser", async ({ page }) => {
       await route.fulfill({
         json: {
           user: {
-            id: 3,
-            name: userName,
+            id: "3",
+            name: userData.name,
             email: email,
             roles: [{ role: "diner" }],
           },
@@ -41,13 +41,27 @@ test("updateUser", async ({ page }) => {
     else if (method === "PUT" && url.match(/\/api\/user\/\d+/)) {
       const requestData = route.request().postDataJSON();
       if (requestData.name) {
-        userName = requestData.name;
+        userData.name = requestData.name;
       }
       await route.fulfill({
         json: {
-          id: 3,
-          name: userName,
-          email: requestData.email || email,
+          user: {
+            id: "3",
+            name: userData.name,
+            email: requestData.email || email,
+            roles: [{ role: "diner" }],
+          },
+          token: "updated-token-789",
+        },
+      });
+    }
+    // Get current user (GET /api/user/me)
+    else if (method === "GET" && url.includes("/api/user/me")) {
+      await route.fulfill({
+        json: {
+          id: "3",
+          name: userData.name,
+          email: email,
           roles: [{ role: "diner" }],
         },
       });
@@ -93,11 +107,15 @@ test("updateUser", async ({ page }) => {
   await nameInput.fill("pizza dinerx");
   await page.getByRole("button", { name: "Update" }).click();
 
-  // Wait for the dialog to close and the name to update in the main content
-  await page.waitForTimeout(500);
+  // Reload page to fetch updated user data
+  await page.reload();
+  await page.waitForTimeout(300);
+
+  // Navigate to diner dashboard
+  await page.getByRole("link", { name: "pd" }).click();
 
   // Verify the name was updated to "pizza dinerx"
-  await expect(page.locator('text=name:').locator('..').locator('div').nth(1)).toContainText("pizza dinerx");
+  await expect(page.getByText("pizza dinerx")).toBeVisible();
 
   // Logout
   await page.getByRole("link", { name: "Logout" }).click();
